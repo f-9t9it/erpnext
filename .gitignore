@@ -9,3 +9,9 @@ latest_updates.json
 dist/
 erpnext/docs/current
 *.swp
+*.swo
+__pycache__
+*~
+.vscode/
+node_modules/
+.idea/

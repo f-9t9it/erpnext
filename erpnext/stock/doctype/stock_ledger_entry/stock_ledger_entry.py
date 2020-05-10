@@ -31,7 +31,7 @@ class StockLedgerEntry(Document):
 		self.check_stock_frozen_date()
 		self.actual_amt_check()
 
-		if not self.get("via_landed_cost_voucher"):
+		if not self.get("via_landed_cost_voucher") and self.voucher_type != 'Stock Reconciliation':
 			from erpnext.stock.doctype.serial_no.serial_no import process_serial_no
 			process_serial_no(self)
 
@@ -77,8 +77,8 @@ class StockLedgerEntry(Document):
 				elif not frappe.db.get_value("Batch",{"item": self.item_code, "name": self.batch_no}):
 					frappe.throw(_("{0} is not a valid Batch Number for Item {1}").format(self.batch_no, self.item_code))
 
-			elif item_det.has_batch_no ==0 and self.batch_no:
-					frappe.throw(_("The Item {0} cannot have Batch").format(self.item_code))
+			elif item_det.has_batch_no ==0 and self.batch_no and self.is_cancelled == "No":
+				frappe.throw(_("The Item {0} cannot have Batch").format(self.item_code))
 
 		if item_det.has_variants:
 			frappe.throw(_("Stock cannot exist for Item {0} since has variants").format(self.item_code),
@@ -131,3 +131,5 @@ def on_doctype_update():
 			add index posting_sort_index(posting_date, posting_time, name)""")
 
 	frappe.db.add_index("Stock Ledger Entry", ["voucher_no", "voucher_type"])
+	frappe.db.add_index("Stock Ledger Entry", ["batch_no", "item_code", "warehouse"])
+

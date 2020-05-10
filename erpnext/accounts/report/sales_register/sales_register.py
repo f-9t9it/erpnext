@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.utils import flt
+from frappe.model.meta import get_field_precision
 from frappe import msgprint, _
 
 def execute(filters=None):
@@ -25,7 +26,7 @@ def _execute(filters, additional_table_columns=None, additional_query_columns=No
 	#Cost Center & Warehouse Map
 	invoice_cc_wh_map = get_invoice_cc_wh_map(invoice_list)
 	invoice_so_dn_map = get_invoice_so_dn_map(invoice_list)
-	company_currency = frappe.db.get_value("Company", filters.get("company"), "default_currency")
+	company_currency = frappe.get_cached_value('Company',  filters.get("company"),  "default_currency")
 	mode_of_payments = get_mode_of_payments([inv.name for inv in invoice_list])
 
 	data = []
@@ -67,7 +68,8 @@ def _execute(filters, additional_table_columns=None, additional_query_columns=No
 		total_tax = 0
 		for tax_acc in tax_accounts:
 			if tax_acc not in income_accounts:
-				tax_amount = flt(invoice_tax_map.get(inv.name, {}).get(tax_acc))
+				tax_amount_precision = get_field_precision(frappe.get_meta("Sales Taxes and Charges").get_field("tax_amount"), currency=company_currency) or 2
+				tax_amount = flt(invoice_tax_map.get(inv.name, {}).get(tax_acc), tax_amount_precision)
 				total_tax += tax_amount
 				row.append(tax_amount)
 
@@ -153,6 +155,16 @@ def get_conditions(filters):
 			 where parent=`tabSales Invoice`.name
 			 	and ifnull(`tabSales Invoice Item`.warehouse, '') = %(warehouse)s)"""
 
+	if filters.get("brand"):
+		conditions +=  """ and exists(select name from `tabSales Invoice Item`
+			 where parent=`tabSales Invoice`.name
+			 	and ifnull(`tabSales Invoice Item`.brand, '') = %(brand)s)"""
+
+	if filters.get("item_group"):
+		conditions +=  """ and exists(select name from `tabSales Invoice Item`
+			 where parent=`tabSales Invoice`.name
+			 	and ifnull(`tabSales Invoice Item`.item_group, '') = %(item_group)s)"""
+
 	return conditions
 
 def get_invoices(filters, additional_query_columns):
@@ -161,7 +173,7 @@ def get_invoices(filters, additional_query_columns):
 
 	conditions = get_conditions(filters)
 	return frappe.db.sql("""
-		select name, posting_date, debit_to, project, customer, 
+		select name, posting_date, debit_to, project, customer,
 		customer_name, owner, remarks, territory, tax_id, customer_group,
 		base_net_total, base_grand_total, base_rounded_total, outstanding_amount {0}
 		from `tabSales Invoice`
@@ -189,7 +201,7 @@ def get_invoice_tax_map(invoice_list, invoice_income_map, income_accounts):
 	invoice_tax_map = {}
 	for d in tax_details:
 		if d.account_head in income_accounts:
-			if invoice_income_map[d.parent].has_key(d.account_head):
+			if d.account_head in invoice_income_map[d.parent]:
 				invoice_income_map[d.parent][d.account_head] += flt(d.tax_amount)
 			else:
 				invoice_income_map[d.parent][d.account_head] = flt(d.tax_amount)

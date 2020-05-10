@@ -10,12 +10,15 @@ from frappe.utils import flt, nowdate, nowtime
 from erpnext.accounts.utils import get_stock_and_account_difference
 from erpnext.stock.doctype.purchase_receipt.test_purchase_receipt import set_perpetual_inventory
 from erpnext.stock.stock_ledger import get_previous_sle, update_entries_after
-from erpnext.stock.doctype.stock_reconciliation.stock_reconciliation import EmptyStockReconciliationItemsError
+from erpnext.stock.doctype.stock_reconciliation.stock_reconciliation import EmptyStockReconciliationItemsError, get_items
+from erpnext.stock.doctype.warehouse.test_warehouse import create_warehouse
+from erpnext.stock.doctype.item.test_item import create_item
 
 class TestStockReconciliation(unittest.TestCase):
-	def setUp(self):
+	@classmethod
+	def setUpClass(self):
 		frappe.db.set_value("Stock Settings", None, "allow_negative_stock", 1)
-		self.insert_existing_sle()
+		insert_existing_sle()
 
 	def test_reco_for_fifo(self):
 		self._test_reco_sle_gle("FIFO")
@@ -79,17 +82,30 @@ class TestStockReconciliation(unittest.TestCase):
 
 			set_perpetual_inventory(0)
 
-	def insert_existing_sle(self):
-		from erpnext.stock.doctype.stock_entry.test_stock_entry import make_stock_entry
+	def test_get_items(self):
+		create_warehouse("_Test Warehouse Group 1", {"is_group": 1})
+		create_warehouse("_Test Warehouse Ledger 1",
+			{"is_group": 0, "parent_warehouse": "_Test Warehouse Group 1 - _TC"})
 
-		make_stock_entry(posting_date="2012-12-15", posting_time="02:00", item_code="_Test Item",
-			target="_Test Warehouse - _TC", qty=10, basic_rate=700)
+		create_item("_Test Stock Reco Item", is_stock_item=1, valuation_rate=100,
+			warehouse="_Test Warehouse Ledger 1 - _TC", opening_stock=100)
 
-		make_stock_entry(posting_date="2012-12-25", posting_time="03:00", item_code="_Test Item",
-			source="_Test Warehouse - _TC", qty=15)
+		items = get_items("_Test Warehouse Group 1 - _TC", nowdate(), nowtime(), "_Test Company")
 
-		make_stock_entry(posting_date="2013-01-05", posting_time="07:00", item_code="_Test Item",
-			target="_Test Warehouse - _TC", qty=15, basic_rate=1200)
+		self.assertEqual(["_Test Stock Reco Item", "_Test Warehouse Ledger 1 - _TC", 100],
+			[items[0]["item_code"], items[0]["warehouse"], items[0]["qty"]])
+
+def insert_existing_sle():
+	from erpnext.stock.doctype.stock_entry.test_stock_entry import make_stock_entry
+
+	make_stock_entry(posting_date="2012-12-15", posting_time="02:00", item_code="_Test Item",
+		target="_Test Warehouse - _TC", qty=10, basic_rate=700)
+
+	make_stock_entry(posting_date="2012-12-25", posting_time="03:00", item_code="_Test Item",
+		source="_Test Warehouse - _TC", qty=15)
+
+	make_stock_entry(posting_date="2013-01-05", posting_time="07:00", item_code="_Test Item",
+		target="_Test Warehouse - _TC", qty=15, basic_rate=1200)
 
 def create_stock_reconciliation(**args):
 	args = frappe._dict(args)

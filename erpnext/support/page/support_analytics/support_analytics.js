@@ -33,7 +33,7 @@ erpnext.SupportAnalytics = frappe.views.GridReportWithPlot.extend({
 		{fieldname: "range", fieldtype:"Select", label: __("Range"),
 			options:["Daily", "Weekly", "Monthly", "Quarterly", "Yearly"], default_value: "Monthly"}
 	],
-	
+
 	init_filter_values: function() {
 		this._super();
 		this.filter_inputs.range.val('Monthly');
@@ -41,8 +41,6 @@ erpnext.SupportAnalytics = frappe.views.GridReportWithPlot.extend({
 
 	setup_columns: function() {
 		var std_columns = [
-			{id: "_check", name: __("Plot"), field: "_check", width: 30,
-				formatter: this.check_formatter},
 			{id: "name", name: __("Status"), field: "name", width: 100},
 		];
 		this.make_date_range_columns();
@@ -53,14 +51,14 @@ erpnext.SupportAnalytics = frappe.views.GridReportWithPlot.extend({
 		// add Opening, Closing, Totals rows
 		// if filtered by account and / or voucher
 		var me = this;
-		var total_tickets = {name:"All Tickets", "id": "all-tickets",
+		var total_tickets = {name:__("All Tickets"), "id": "all-tickets",
 			checked:true};
-		var days_to_close = {name:"Days to Close", "id":"days-to-close",
+		var days_to_close = {name:__("Days to Close"), "id":"days-to-close",
 			checked:false};
 		var total_closed = {};
-		var hours_to_close = {name:"Hours to Close", "id":"hours-to-close",
+		var hours_to_close = {name:__("Hours to Close"), "id":"hours-to-close",
 			checked:false};
-		var hours_to_respond = {name:"Hours to Respond", "id":"hours-to-respond",
+		var hours_to_respond = {name:__("Hours to Respond"), "id":"hours-to-respond",
 			checked:false};
 		var total_responded = {};
 
